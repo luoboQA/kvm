@@ -4,11 +4,11 @@
 #include <stdint.h>
 
 typedef struct VM {
-  void *mem;
+  void *mem; // 指向虚拟机物理内存的指针（在宿主机中的地址）
   uint64_t mem_size;
   /* Only supports one vCPU */
-  int vcpufd;
-  struct kvm_run *run;
+  int vcpufd; // vCPU的文件描述符，用于与KVM进行通信，ioctl操作时使用
+  struct kvm_run *run; // 指向KVM运行状态的指针，用于获取vCPU的运行状态和执行结果
 } VM;
 
 /* Common macros */
@@ -23,6 +23,8 @@ typedef struct VM {
 } while(0)
 
 /* CR0 bits */
+// 这些宏定义了 x86-64 架构中 CR0、CR4、EFER 寄存器的位含义。\
+Hypervisor 在初始化 vCPU 时会设置这些寄存器的值，从而决定 CPU 的工作模式
 #define CR0_PE 1u
 #define CR0_MP (1u << 1)
 #define CR0_EM (1u << 2)
@@ -67,6 +69,8 @@ typedef struct VM {
 #define EFER_TCE (1 << 15)
 
 /* 64-bit page * entry bits */
+// 这些宏定义了 x86-64 架构中 64 位页表项的位含义。\
+Hypervisor 在设置分页时会使用这些宏来构造页表项，从而控制内存访问权限和页面属性
 #define PDE64_PRESENT 1
 #define PDE64_RW (1 << 1)
 #define PDE64_USER (1 << 2)

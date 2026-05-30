@@ -9,29 +9,41 @@
 #define MSR_CSTAR 0xc0000083 /* compat mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084
 
+/* Guest内核的入口函数，Hypervisor会加载Guest内核二进制文件到内存，并给Guest内核传递用户程序的参数，
+复制到虚拟机的栈中，使得Guest内核可以像普通 C 程序一样访问 argc 和 argv，然后进入执行循环, vCPU会逐条执行Guest的指令，
+等待Guest退出 ，退出后可以通过 vm->run 结构体获取退出原因和相关信息，根据 vCPU 的退出原因进行处理*/
+
+// 注册 syscall 处理函数，设置 MSR 寄存器，使得当 Guest 内核执行 syscall 指令时能够跳转到我们指定的 syscall_entry 函数来处理系统调用
 int register_syscall() {
   asm(
+    // 1. 设置 STAR MSR (用户态/内核态段选择子)
     "xor rax, rax;"
-    "mov rdx, 0x00200008;"
-    "mov ecx, %[msr_star];"
+    "mov rdx, 0x00200008;"    // 内核代码段: 0x08, 用户代码段: 0x1b, STAR 的高 32 位存储内核代码段选择子，低 32 位存储用户代码段选择子
+    "mov ecx, %[msr_star];"   // MSR_STAR = 0xc0000081
     "wrmsr;"
 
-    "mov eax, %[fmask];"
+    // 2. 设置 SYSCALL_MASK (执行 syscall 时清除的 EFLAGS 位)
+    "mov eax, %[fmask];"      // 0x3f7fd5
     "xor rdx, rdx;"
-    "mov ecx, %[msr_fmask];"
+    "mov ecx, %[msr_fmask];"  // MSR_SYSCALL_MASK = 0xc0000084
     "wrmsr;"
 
-    "lea rax, [rip + syscall_entry];"
-    "mov rdx, %[base] >> 32;"
-    "mov ecx, %[msr_syscall];"
+    // 3. 设置 LSTAR MSR (syscall 的目标地址)
+    "lea rax, [rip + syscall_entry];"  // syscall_entry 的地址，kernel/syscalls/syscall_entry.S，由global导出，最后链接到内核镜像中
+    "mov rdx, %[base] >> 32;"          // 高 32 位
+    "mov ecx, %[msr_syscall];"         // MSR_LSTAR = 0xc0000082
     "wrmsr;"
-    :: [msr_star]"i"(MSR_STAR),
-       [fmask]"i"(0x3f7fd5), [msr_fmask]"i"(MSR_SYSCALL_MASK),
-       [base]"i"(KERNEL_BASE_OFFSET), [msr_syscall]"i"(MSR_LSTAR)
+    : // 无输出
+    : [msr_star]"i"(MSR_STAR),
+      [fmask]"i"(0x3f7fd5),
+      [msr_fmask]"i"(MSR_SYSCALL_MASK),
+      [base]"i"(KERNEL_BASE_OFFSET),
+      [msr_syscall]"i"(MSR_LSTAR)
     : "rax", "rdx", "rcx");
   return 0;
 }
 
+// 切换到用户态，准备用户程序的执行环境，包括设置分页、初始化内存分配器、注册系统调用处理函数，并最终调用 sys_execve 来执行用户程序
 void switch_user(uint64_t argc, char *argv[]) {
   int total_len = (argv[argc - 1] + strlen(argv[argc - 1]) + 1) - (char*) argv;
   /* temporary area for putting user-accessible data */

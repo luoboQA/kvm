@@ -2,6 +2,7 @@
 #define DEBUG_H
 
 #ifdef DEBUG
+/* KVM 调试头文件，用于输出虚拟机的 CPU 寄存器状态 */
 
 #include <assert.h>
 #include <linux/kvm.h>
@@ -9,15 +10,20 @@
 #include <sys/ioctl.h>
 
 #define debug(...) fprintf(stderr, __VA_ARGS__)
+
+/* 输出 CPU 段寄存器内容的调试宏, 包括段基址、段界限、选择子、
+类型、特权级、默认操作数大小、64 位代码段标志、全局标志和可用标志 */
 #define dump_seg(n, s) \
   debug("%3s base=0x%016llx limit=%08x selector=%#04x " \
     "type=0x%02x dpl=%d db=%d l=%d g=%d avl=%d\n", \
     (n), (s)->base, (s)->limit, (s)->selector, \
     (s)->type, (s)->dpl, (s)->db, (s)->l, (s)->g, (s)->avl)
 
+/* 输出 CPU 寄存器状态的调试函数, 包括通用寄存器、指令指针、标志寄存器和控制寄存器 \
+通过两次 ioctl 系统调用获取虚拟机CPU的所有寄存器状态，并格式化输出用于调试 */
 void dump_regs(int vcpufd) {
-  struct kvm_regs regs;
-  int ret = ioctl(vcpufd, KVM_GET_REGS, &regs);
+  struct kvm_regs regs; // kvm_regs 结构体变量，用于存储通用寄存器的值
+  int ret = ioctl(vcpufd, KVM_GET_REGS, &regs); // 通过 ioctl 系统调用获取虚拟机CPU的通用寄存器状态，存储在 regs 变量中
   assert(ret == 0);
 
   debug("\nDump regs\n");
@@ -31,7 +37,7 @@ void dump_regs(int vcpufd) {
     regs.r11, regs.r12, regs.r13, regs.r14);
   debug("r15\t0x%016llx rflags\t0x%08llx\n", regs.r15, regs.rflags);
 
-  struct kvm_sregs sregs;
+  struct kvm_sregs sregs; // kvm_sregs 结构体变量，用于存储段寄存器和控制寄存器的值
   ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
   assert(ret == 0);
 

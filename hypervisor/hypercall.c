@@ -18,11 +18,12 @@ static int hp_handle_lseek(VM*);
 static int hp_handle_exit(VM*);
 static int hp_handle_panic(VM*);
 
+// 根据 hypercall 编号 nr 调用对应的处理函数，并返回结果
 int hp_handler(uint16_t nr, VM* vm) {
   switch(nr) {
 #define handle(f) case NR_HP_##f: return hp_handle_##f(vm)
 
-  handle(open);
+  handle(open); // 展开为: case NR_HP_open: return hp_handle_open(vm);
   handle(read);
   handle(write);
   handle(close);

@@ -5,6 +5,42 @@ The source code are examples on my blog: [Learning KVM - implement your own kern
 I've described how to implement a KVM-based hypervisor and the key points to implement a kernel on my blog.
 You can leave comments in the blog or file issues here if you have questions or find any bug.
 
+## Flow
+Hypervisor(宿主机用户程序)     Guest内核 (kernel.bin)                用户程序 (orw.elf)
+─────────────────────────────────────────────────────────────────────────────────
+KVM_RUN ──────→  kernel/entry.s 
+                 entry.s:_start (RIP=0)
+                 call kernel_main()
+                     │
+                     ├─ register_syscall()
+                     ├─ switch_user()
+                            │
+                            └─ sys_execve()
+                                  │
+                                  ├─ sys_open("orw.elf")  ← 超级调用
+                                  ├─ sys_read()           ← 超级调用
+                                  ├─ load_binary()        ← 解析 ELF
+                                  ├─ create_elf_info()    ← 设置用户栈
+                                  │
+                                  └─ asm("sysret")    ← 切换到用户态
+                                      (内核暂停)             │
+                                                            ↓
+                                    (等待用户程序)     用户程序开始执行
+                                                            │
+                                                            ├─ open("/etc/os-release") ← 系统调用
+                                                            │      │
+                                                            │      ↓ (进入内核)
+                                                            │   syscall_entry
+                                                            │      │
+                                                            │      └─ 超级调用 → Hypervisor
+                                                            │
+                                                            └─ sys_call (exit)
+                                                                     │
+                                                                     └─ 超级调用 exit()
+                                                                              │ (内核收到退出)
+                                                                              │
+                                                                              ↓
+                                                                       Hypervisor 退出
 ## Dir
 
 ### Hypervisor
