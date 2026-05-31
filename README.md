@@ -41,6 +41,24 @@ KVM_RUN ──────→  kernel/entry.s
                                                                               │
                                                                               ↓
                                                                        Hypervisor 退出
+
+地址读取：
+1. 程序使用虚拟地址 0x00007f1234567000
+
+2. CPU 自动拆解：
+   PML4索引 = 0x0FA
+   PDP索引  = 0x123
+   PD索引   = 0x456
+   PT索引   = 0x789
+   页内偏移  = 0x000
+
+3. 查表 (CR3 指向 PML4 基址)：
+   PML4[0x0FA] → 找到 PDP 页
+   PDP[0x123]  → 找到 PD 页
+   PD[0x456]   → 找到 PT 页
+   PT[0x789]   → 找到物理页基址
+
+4. 物理地址 = 物理页基址 + 0x000
 ## Dir
 
 ### Hypervisor
