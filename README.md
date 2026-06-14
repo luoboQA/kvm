@@ -6,6 +6,7 @@ I've described how to implement a KVM-based hypervisor and the key points to imp
 You can leave comments in the blog or file issues here if you have questions or find any bug.
 
 ## Flow
+```text
 Hypervisor(宿主机用户程序)     Guest内核 (kernel.bin)                用户程序 (orw.elf)
 ─────────────────────────────────────────────────────────────────────────────────
 KVM_RUN ──────→  kernel/entry.s 
@@ -286,6 +287,7 @@ PT索引   = (0x00007f1234567000 >> 12) & 0x1FF = 0x789
 步骤 6: 计算物理地址
 物理页基址 = 0x200000
 物理地址 = 0x200000 + 0x000 = 0x200000
+```
 ## Dir
 
 ### Hypervisor
